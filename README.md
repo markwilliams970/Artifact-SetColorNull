@@ -1,4 +1,4 @@
-Artifact-NullColor
+Artifact-SetNullColor
 =========================
 
 ## Overview
