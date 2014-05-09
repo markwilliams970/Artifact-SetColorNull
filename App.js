@@ -1,0 +1,201 @@
+Ext.define('CustomApp', {
+    extend: 'Rally.app.App',
+    componentCls: 'app',
+
+    items: [
+        {
+            xtype: 'container',
+            itemId: 'artifactTypeDropdown',
+            columnWidth: 1
+        },
+        {
+            xtype: 'container',
+            itemId: 'gridContainer',
+            columnWidth: 1
+        }
+    ],
+
+    _rallyServer: window.location.hostname,
+    _artifactTypeCombobox: null,
+    _artifactStore: null,
+    _artifacts: [],
+    _artifactGrid: null,
+
+    launch: function() {
+
+        var artifactTypesStore = Ext.create('Ext.data.Store', {
+            fields: ['name', 'type'],
+            data: [
+                {"name": "Portfolio Item", "type": "PortfolioItem"},
+                {"name": "User Story",     "type": "HierarchicalRequirement"},
+                {"name": "Defect",         "type": "Defect"},
+                {"name": "Task",           "type": "Task"}
+            ]
+        });
+
+        this._artifactTypeCombobox = Ext.create('Ext.form.ComboBox', {
+            fieldLabel:   'Choose Artifact Type',
+            store:        artifactTypesStore,
+            queryMode:    'local',
+            displayField: 'name',
+            valueField:   'type',
+            listeners: {
+                scope: this,
+                'select': this._getArtifacts
+            }
+        });
+
+        this.down("#artifactTypeDropdown").add(this._artifactTypeCombobox);
+
+    },
+
+    _getArtifacts: function() {
+
+        var selectedArtifactType = this._artifactTypeCombobox.getValue();
+
+        this._artifactStore = Ext.create('Rally.data.wsapi.Store', {
+            model: selectedArtifactType,
+            fetch: ['ObjectID', 'FormattedID', 'Name', 'DisplayColor'],
+            autoLoad: true,
+            limit: 4000,
+            context: {
+                projectScopeUp: false,
+                projectScopeDown: false
+            },
+            listeners: {
+                scope: this,
+                load: this._artifactStoreLoaded
+            }
+        });
+    },
+
+    _artifactStoreLoaded: function(store, records) {
+
+        var me = this;
+        me._artifacts = records;
+        me._makeGrid();
+
+    },
+
+
+    _makeGrid: function() {
+
+        var me = this;
+
+        if (me._artifactGrid) {
+            me._artifactGrid.destroy();
+        }
+
+        var colorRecords = [];
+
+        Ext.Array.each(me._artifacts, function(record) {
+
+            var displayColor = record.get('DisplayColor');
+            console.log(displayColor);
+
+            if (displayColor) {
+                console.log(displayColor);
+                colorRecords.push(record);
+            }
+
+        });
+
+        console.log(colorRecords);
+
+        var gridStore = Ext.create('Rally.data.custom.Store', {
+            data: colorRecords,
+            pageSize: 1000,
+            remoteSort: false
+        });
+
+        me._artifactGrid = Ext.create('Rally.ui.grid.Grid', {
+            itemId: 'artifactGrid',
+            store: gridStore,
+
+            columnCfgs: [
+                {
+                    text: 'Formatted ID', dataIndex: 'FormattedID', xtype: 'templatecolumn',
+                    tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate')
+                },
+                {
+                    text: 'Name', dataIndex: 'Name', flex: 1
+                },
+                {
+                    text: 'DisplayColor', dataIndex: 'DisplayColor'
+                },
+                {
+                    text: 'Remove Display Color',
+                    renderer: function (value, model, record) {
+                        var id = Ext.id();
+                        Ext.defer(function () {
+                            Ext.widget('button', {
+                                renderTo: id,
+                                text: 'Remove Display Color',
+                                width: 100,
+                                handler: function () {
+                                    me._removeDisplayColor(record.data);
+                                }
+                            });
+                        }, 50);
+                        return Ext.String.format('<div id="{0}"></div>', id);
+                    }
+                }
+            ]
+        });
+
+        me.down('#gridContainer').add(me._artifactGrid);
+        me._artifactGrid.reconfigure(gridStore);
+
+    },
+
+    _removeDisplayColor: function(record) {
+
+        var me = this;
+        var artifactOID = record.ObjectID;
+        console.log(artifactOID);
+
+        var selectedArtifactType = me._artifactTypeCombobox.getValue();
+
+        var artifactModel = Rally.data.ModelFactory.getModel({
+            type: selectedArtifactType,
+            scope: this,
+            success: function(model, operation) {
+                model.load(artifactOID, {
+                    scope: this,
+                    success: function(artifactHydrated, operation) {
+                        console.log(artifactHydrated);
+                        artifactHydrated.set("DisplayColor", "");
+                        artifactHydrated.save({
+                            callback: function(result, operation) {
+                                console.log(operation.wasSuccessful());
+                                Ext.create('Rally.ui.dialog.ConfirmDialog', {
+                                    title: "DisplayColor Removed",
+                                    message: "DisplayColor Successfully Removed!",
+                                    confirmLabel: "Ok",
+                                    listeners: {
+                                        confirm: function(){
+                                            return;
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+    },
+
+    _noArtifactsNotify: function() {
+
+        if (this._artifactGrid) {
+            this._artifactGrid.destroy();
+        }
+
+        this._artifactGrid = this.down('#gridContainer').add({
+            xtype: 'container',
+            html: "No attachments found on Artifacts of selected Type."
+        });
+    }
+});
