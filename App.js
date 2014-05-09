@@ -57,7 +57,7 @@ Ext.define('CustomApp', {
             model: selectedArtifactType,
             fetch: ['ObjectID', 'FormattedID', 'Name', 'DisplayColor'],
             autoLoad: true,
-            limit: 4000,
+            limit: Infinity,
             context: {
                 projectScopeUp: false,
                 projectScopeDown: false
