@@ -65,6 +65,11 @@ Ext.define('CustomApp', {
             listeners: {
                 scope: this,
                 load: this._artifactStoreLoaded
+            },
+            filters: {
+                property: 'DisplayColor',
+                operator: '=',
+                value: "Sample Color"
             }
         });
     },
@@ -93,8 +98,7 @@ Ext.define('CustomApp', {
             var displayColor = record.get('DisplayColor');
             console.log(displayColor);
 
-            if (displayColor) {
-                console.log(displayColor);
+            if (displayColor === "Sample Color") {
                 colorRecords.push(record);
             }
 
@@ -131,14 +135,15 @@ Ext.define('CustomApp', {
                             Ext.widget('button', {
                                 renderTo: id,
                                 text: 'Remove Display Color',
-                                width: 100,
+                                width: 200,
                                 handler: function () {
                                     me._removeDisplayColor(record.data);
                                 }
                             });
                         }, 50);
                         return Ext.String.format('<div id="{0}"></div>', id);
-                    }
+                    },
+                    flex: 1
                 }
             ]
         });
@@ -152,7 +157,6 @@ Ext.define('CustomApp', {
 
         var me = this;
         var artifactOID = record.ObjectID;
-        console.log(artifactOID);
 
         var selectedArtifactType = me._artifactTypeCombobox.getValue();
 
@@ -163,21 +167,32 @@ Ext.define('CustomApp', {
                 model.load(artifactOID, {
                     scope: this,
                     success: function(artifactHydrated, operation) {
-                        console.log(artifactHydrated);
                         artifactHydrated.set("DisplayColor", "");
                         artifactHydrated.save({
                             callback: function(result, operation) {
-                                console.log(operation.wasSuccessful());
-                                Ext.create('Rally.ui.dialog.ConfirmDialog', {
-                                    title: "DisplayColor Removed",
-                                    message: "DisplayColor Successfully Removed!",
-                                    confirmLabel: "Ok",
-                                    listeners: {
-                                        confirm: function(){
-                                            return;
+                                if(operation.wasSuccessful()) {
+                                    Ext.create('Rally.ui.dialog.ConfirmDialog', {
+                                        title: "DisplayColor Removed",
+                                        message: "DisplayColor Successfully Removed!",
+                                        confirmLabel: "Ok",
+                                        listeners: {
+                                            confirm: function () {
+                                                return;
+                                            }
                                         }
-                                    }
-                                });
+                                    });
+                                } else {
+                                    Ext.create('Rally.ui.dialog.ConfirmDialog', {
+                                        title: "DisplayColor Not Removed",
+                                        message: "Error Removing DisplayColor!",
+                                        confirmLabel: "Ok",
+                                        listeners: {
+                                            confirm: function () {
+                                                return;
+                                            }
+                                        }
+                                    });
+                                }
                             }
                         });
                     }
